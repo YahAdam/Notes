@@ -1,0 +1,1 @@
+export { NotesPad } from "./Notes";
