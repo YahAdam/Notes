@@ -1,0 +1,1 @@
+export {NotePad} from "./RichTextEditor";

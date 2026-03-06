@@ -1,12 +1,10 @@
-import './App.scss'
-import { NotesPad } from './pages/Notes'
+import "./App.scss";
+import { NotePad } from "./pages/RichTextEditor";
 
-function App() {
+export default function App() {
   return (
     <>
-      <NotesPad />
+      <NotePad />
     </>
-  )
+  );
 }
-
-export default App
