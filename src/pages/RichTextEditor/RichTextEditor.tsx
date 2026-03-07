@@ -7,7 +7,8 @@ import Color from "@tiptap/extension-color";
 import TextAlign from "@tiptap/extension-text-align";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import "./RichTextEditor.scss"
+import "./RichTextEditor.scss";
+import type { ThemeName } from "../../types/theme";
 
 type Note = {
   id: string;
@@ -17,8 +18,12 @@ type Note = {
   updatedAt: number;
 };
 
-const STORAGE_KEY = "notes_app_v1";
+type NotePadProps = {
+  theme: ThemeName;
+  setTheme: React.Dispatch<React.SetStateAction<ThemeName>>;
+};
 
+const STORAGE_KEY = "notes_app_v1";
 const FONT_SIZES = ["12px", "14px", "16px", "18px", "24px", "32px"];
 
 function uid(): string {
@@ -55,7 +60,7 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-export function NotePad() {
+export function NotePad({ theme, setTheme }: NotePadProps) {
   const [notes, setNotes] = useState<Note[]>(() => loadNotes());
   const [selectedId, setSelectedId] = useState<string | null>(
     () => loadNotes()[0]?.id ?? null,
@@ -89,7 +94,7 @@ export function NotePad() {
     }
   }, [notes, selectedId]);
 
-  const createNote = () => {
+  function createNote() {
     const now = Date.now();
     const newNote: Note = {
       id: uid(),
@@ -100,14 +105,14 @@ export function NotePad() {
     };
     setNotes((prev) => [newNote, ...prev]);
     setSelectedId(newNote.id);
-  };
+  }
 
-  const deleteNote = (id: string) => {
+  function deleteNote(id: string) {
     setNotes((prev) => prev.filter((n) => n.id !== id));
     if (selectedId === id) setSelectedId(null);
-  };
+  }
 
-  const updateSelected = (patch: Partial<Pick<Note, "title" | "content">>) => {
+  function updateSelected(patch: Partial<Pick<Note, "title" | "content">>) {
     if (!selectedId) return;
     const now = Date.now();
     setNotes((prev) =>
@@ -115,9 +120,9 @@ export function NotePad() {
         n.id === selectedId ? { ...n, ...patch, updatedAt: now } : n,
       ),
     );
-  };
+  }
 
-  const exportJson = () => {
+  function exportJson() {
     const blob = new Blob([JSON.stringify(notes, null, 2)], {
       type: "application/json",
     });
@@ -127,9 +132,9 @@ export function NotePad() {
     a.download = "notes.json";
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }
 
-  const importJson = async (file: File) => {
+  async function importJson(file: File) {
     const text = await file.text();
     const parsed = JSON.parse(text) as Note[];
     if (!Array.isArray(parsed)) return;
@@ -147,7 +152,7 @@ export function NotePad() {
     const sorted = normalized.sort((a, b) => b.updatedAt - a.updatedAt);
     setNotes(sorted);
     setSelectedId(sorted[0]?.id ?? null);
-  };
+  }
 
   const editor = useEditor(
     {
@@ -169,7 +174,7 @@ export function NotePad() {
       editorProps: {
         attributes: {
           class:
-            "min-h-0 flex-1 p-4 outline-none text-sm leading-6 text-gray-900 text-left",
+            "note-editor-content min-h-0 flex-1 p-4 outline-none text-sm leading-6 text-left h-full cursor-text",
         },
       },
       onUpdate: ({ editor }) => {
@@ -190,60 +195,63 @@ export function NotePad() {
     }
   }, [editor, selectedNote]);
 
-  const setFontSize = (size: string) => {
+  function setFontSize(size: string) {
     if (!editor) return;
     editor
       .chain()
       .focus()
       .setMark("textStyle", { style: `font-size: ${size}` })
       .run();
-  };
+  }
 
-  const clearFontSize = () => {
+  function clearFontSize() {
     if (!editor) return;
     editor.chain().focus().unsetMark("textStyle").run();
-  };
+  }
 
-  const setTextColor = (color: string) => {
+  function setTextColor(color: string) {
     if (!editor) return;
     editor.chain().focus().setColor(color).run();
-  };
+  }
 
   return (
-    <div className="h-screen w-full overflow-hidden border border-gray-200 bg-white shadow-sm">
+    <div
+      data-theme={theme}
+      className="notes-root h-screen w-full overflow-hidden border shadow-sm"
+    >
       <div className="grid h-full grid-cols-1 md:grid-cols-[340px_1fr]">
-        <aside className="flex h-full flex-col border-b border-gray-200 md:border-b-0 md:border-r">
+        <aside className="notes-sidebar flex h-full flex-col border-b md:border-b-0 md:border-r">
           <div className="p-4">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="m-0 text-base font-bold text-gray-900">Notes</h2>
+              <h2 className="m-0 text-base font-bold">Notes</h2>
               <button
+                className="btn-primary inline-flex items-center justify-center rounded-xl px-5 py-2 text-sm font-semibold"
                 type="button"
                 onClick={createNote}
-                className="inline-flex items-center justify-center rounded-xl bg-green-900 px-5 py-2 text-sm font-semibold text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-gray-900/20"
               >
                 + New
               </button>
             </div>
             <input
-              className="mt-3 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              className="input-base mt-3 w-full rounded-xl px-3 py-2 text-sm focus:outline-none"
               placeholder="Search notes..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
             <div className="mt-3 flex gap-2">
               <button
+                className="btn-secondary inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold"
                 type="button"
                 onClick={exportJson}
-                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
               >
                 Export
               </button>
-              <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+              <label className="btn-secondary inline-flex cursor-pointer items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold">
                 Import
                 <input
+                  className="hidden"
                   type="file"
                   accept="application/json"
-                  className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) void importJson(f);
@@ -251,11 +259,21 @@ export function NotePad() {
                   }}
                 />
               </label>
+              <select
+                className="input-base rounded-xl px-3 py-2 text-sm focus:outline-none"
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as ThemeName)}
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="forest">Forest</option>
+                <option value="dark-forest">Dark Forest</option>
+              </select>
             </div>
           </div>
           <div className="flex-1 overflow-auto p-3">
             {filteredNotes.length === 0 ? (
-              <div className="px-2 py-3 text-sm text-gray-500">
+              <div className="text-muted px-2 py-3 text-sm">
                 No notes found.
               </div>
             ) : (
@@ -270,25 +288,21 @@ export function NotePad() {
                       type="button"
                       onClick={() => setSelectedId(n.id)}
                       className={[
-                        "w-full rounded-2xl border px-3 py-2 text-left transition",
-                        "bg-white hover:bg-gray-50",
-                        isSelected
-                          ? "border-blue-300 ring-4 ring-blue-500/15"
-                          : "border-gray-200",
+                        "note-card w-full rounded-2xl border px-3 py-2 text-left transition",
+                        isSelected ? "note-card-selected" : "",
                       ].join(" ")}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-bold text-gray-900">
+                          <div className="truncate text-sm font-bold">
                             {n.title || "Untitled"}
                           </div>
                         </div>
-                        <div className="shrink-0 whitespace-nowrap text-xs text-gray-500">
+                        <div className="text-muted shrink-0 whitespace-nowrap text-xs">
                           {formatDate(n.updatedAt)}
                         </div>
                       </div>
-
-                      <div className="mt-1 truncate text-sm text-gray-700">
+                      <div className="text-soft mt-1 truncate text-sm">
                         {preview}
                       </div>
                     </button>
@@ -298,125 +312,104 @@ export function NotePad() {
             )}
           </div>
         </aside>
-        <section className="flex h-full min-w-0 flex-col bg-white">
+        <section className="notes-main flex h-full min-w-0 flex-col">
           {!selectedNote ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-gray-700">
+            <div className="text-soft flex h-full flex-col items-center justify-center gap-3 p-6">
               <p className="m-0 text-base">No note selected.</p>
               <button
+                className="btn-primary rounded-xl px-4 py-2 text-sm font-semibold"
                 type="button"
                 onClick={createNote}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
               >
-                Create your first note
+                {notes.length > 0 ? "Create new note" : "Create your first note"}
               </button>
             </div>
           ) : (
             <>
-              <div className="border-b border-gray-200 p-4">
+              <div className="notes-header border-b p-4">
                 <input
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-lg font-extrabold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="input-base w-full rounded-xl px-3 py-2 text-lg font-extrabold focus:outline-none"
+                  placeholder="Title"
                   value={selectedNote.title}
                   onChange={(e) => updateSelected({ title: e.target.value })}
-                  placeholder="Title"
                 />
-
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-col gap-1 text-xs text-gray-500 sm:flex-row sm:gap-4">
+                  <div className="text-muted flex flex-col gap-1 text-xs sm:flex-row sm:gap-4">
                     <div>Created: {formatDate(selectedNote.createdAt)}</div>
                     <div>Updated: {formatDate(selectedNote.updatedAt)}</div>
                   </div>
 
                   <button
+                    className="btn-danger rounded-xl px-3 py-2 text-sm font-bold"
                     type="button"
-                    onClick={() => deleteNote(selectedNote.id)}
                     title="Delete note"
-                    className="rounded-xl border border-red-500/60 bg-white px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                    onClick={() => deleteNote(selectedNote.id)}
                   >
                     Delete
                   </button>
                 </div>
               </div>
-              <div className="border-b border-gray-200 p-3">
+              <div className="notes-toolbar-wrap border-b p-3">
                 {!editor ? null : (
-                  <div className="flex flex-wrap items-center gap-2 rounded border border-gray-300 p-2">
+                  <div className="notes-toolbar flex flex-wrap items-center gap-2 rounded border p-2">
                     <button
+                      className={`toolbar-btn rounded px-2 py-1 border ${editor.isActive("bold") ? "toolbar-btn-active" : ""}`}
                       type="button"
                       onClick={() => editor.chain().focus().toggleBold().run()}
-                      className={`rounded px-2 py-1 border  text-green-600 ${
-                        editor.isActive("bold") ? "bg-gray-200" : ""
-                      }`}
                     >
                       Bold
                     </button>
                     <button
+                      className={`toolbar-btn rounded px-2 py-1 border ${editor.isActive("italic") ? "toolbar-btn-active" : ""}`}
                       type="button"
                       onClick={() =>
                         editor.chain().focus().toggleItalic().run()
                       }
-                      className={`rounded px-2 py-1 border  text-green-600 ${
-                        editor.isActive("italic") ? "bg-gray-200" : ""
-                      }`}
                     >
                       Italic
                     </button>
                     <button
+                      className={`toolbar-btn rounded px-2 py-1 border ${editor.isActive("underline") ? "toolbar-btn-active" : ""}`}
                       type="button"
                       onClick={() =>
                         editor.chain().focus().toggleUnderline().run()
                       }
-                      className={`rounded px-2 py-1 border text-green-600 ${
-                        editor.isActive("underline") ? "bg-gray-200" : ""
-                      }`}
                     >
                       Underline
                     </button>
-                    <span className="mx-1 h-6 w-px bg-gray-300 text-green-600" />
+                    <span className="toolbar-divider mx-1 h-6 w-px" />
                     <button
+                      className={`toolbar-btn rounded px-2 py-1 border ${editor.isActive("heading", { level: 1 }) ? "toolbar-btn-active" : ""}`}
                       type="button"
                       onClick={() =>
                         editor.chain().focus().toggleHeading({ level: 1 }).run()
                       }
-                      className={`rounded px-2 py-1 border text-green-600 ${
-                        editor.isActive("heading", { level: 1 })
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
                     >
                       H1
                     </button>
                     <button
+                      className={`toolbar-btn rounded px-2 py-1 border ${editor.isActive("heading", { level: 2 }) ? "toolbar-btn-active" : ""}`}
                       type="button"
                       onClick={() =>
                         editor.chain().focus().toggleHeading({ level: 2 }).run()
                       }
-                      className={`rounded px-2 py-1 border text-green-600 ${
-                        editor.isActive("heading", { level: 2 })
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
                     >
                       H2
                     </button>
                     <button
+                      className={`toolbar-btn rounded px-2 py-1 border ${editor.isActive("heading", { level: 3 }) ? "toolbar-btn-active" : ""}`}
                       type="button"
                       onClick={() =>
                         editor.chain().focus().toggleHeading({ level: 3 }).run()
                       }
-                      className={`rounded px-2 py-1 border text-green-600 ${
-                        editor.isActive("heading", { level: 3 })
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
                     >
                       H3
                     </button>
-
-                    <span className="mx-1 h-6 w-px bg-gray-300" />
-
+                    <span className="toolbar-divider mx-1 h-6 w-px" />
                     <select
+                      className="input-base rounded px-2 py-1 text-sm focus:outline-none"
                       onChange={(e) => setFontSize(e.target.value)}
                       defaultValue=""
-                      className="rounded border px-2 py-1 text-green-600"
                     >
                       <option value="" disabled>
                         Font size…
@@ -428,63 +421,57 @@ export function NotePad() {
                       ))}
                     </select>
                     <button
+                      className="toolbar-btn rounded px-2 py-1 border"
                       type="button"
                       onClick={clearFontSize}
-                      className="rounded px-2 py-1 border  text-green-600"
                     >
                       Clear size
                     </button>
-                    <span className="mx-1 h-6 w-px bg-gray-300  text-green-600" />
+                    <span className="toolbar-divider mx-1 h-6 w-px" />
                     <input
-                      className="rounded border px-2 py-1 text-green-600"
+                      className="color-input rounded border px-2 py-1"
                       type="color"
                       onChange={(e) => setTextColor(e.target.value)}
                     />
                     <button
+                      className="toolbar-btn rounded px-2 py-1 border"
                       type="button"
                       onClick={() => editor.chain().focus().unsetColor().run()}
-                      className="rounded px-2 py-1 border  text-green-600"
                     >
                       Clear color
                     </button>
-                    <span className="mx-1 h-6 w-px bg-gray-300  text-green-600" />
+                    <span className="toolbar-divider mx-1 h-6 w-px" />
                     <button
+                      className={`toolbar-btn rounded px-2 py-1 border ${editor.isActive("taskList") ? "toolbar-btn-active" : ""}`}
                       type="button"
                       onClick={() =>
                         editor.chain().focus().toggleTaskList().run()
                       }
-                      className={`rounded px-2 py-1 border text-green-600 ${
-                        editor.isActive("taskList") ? "bg-gray-200" : ""
-                      }`}
                     >
                       Checkbox
                     </button>
                     <button
+                      className={`toolbar-btn rounded px-2 py-1 border ${editor.isActive("bulletList") ? "toolbar-btn-active" : ""}`}
                       type="button"
                       onClick={() =>
                         editor.chain().focus().toggleBulletList().run()
                       }
-                      className={`rounded px-2 py-1 border  text-green-600 ${
-                        editor.isActive("bulletList") ? "bg-gray-200" : ""
-                      }`}
                     >
                       • List
                     </button>
                     <button
+                      className={`toolbar-btn rounded px-2 py-1 border ${editor.isActive("orderedList") ? "toolbar-btn-active" : ""}`}
                       type="button"
                       onClick={() =>
                         editor.chain().focus().toggleOrderedList().run()
                       }
-                      className={`rounded px-2 py-1 border  text-green-600 ${
-                        editor.isActive("orderedList") ? "bg-gray-200" : ""
-                      }`}
                     >
                       1. List
                     </button>
                   </div>
                 )}
               </div>
-              <div className="min-h-0 flex-1 overflow-auto">
+              <div className="notes-editor-area min-h-0 flex-1 overflow-auto">
                 <div className="tiptap h-full">
                   <EditorContent editor={editor} className="h-full" />
                 </div>
