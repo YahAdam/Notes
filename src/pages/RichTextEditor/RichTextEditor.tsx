@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import "./RichTextEditor.scss";
+import type { ThemeName } from "../../types/theme";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -7,8 +9,6 @@ import Color from "@tiptap/extension-color";
 import TextAlign from "@tiptap/extension-text-align";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import "./RichTextEditor.scss";
-import type { ThemeName } from "../../types/theme";
 
 type Note = {
   id: string;
