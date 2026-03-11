@@ -1,1 +1,1 @@
-export type ThemeName = "light" | "dark" | "forest" | "dark-forest";
+export type ThemeName = "light" | "dark" | "forest" | "dark-forest" | "monokai";

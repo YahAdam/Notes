@@ -90,6 +90,7 @@ export function SidePanel({
             <option value="dark">Dark</option>
             <option value="forest">Forest</option>
             <option value="dark-forest">Dark Forest</option>
+            <option value="monokai">Monokai</option>
           </select>
         </div>
       </div>
