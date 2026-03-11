@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.scss";
 import { NotePad } from "./pages/RichTextEditor";
-import type { ThemeName } from "./types/theme";
+import type { ThemeName } from "./types";
 
 const THEME_STORAGE_KEY = "notes_theme";
 

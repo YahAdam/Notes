@@ -1,0 +1,11 @@
+.note-delete-icon {
+  opacity: 0;
+  transform: translateX(-16px);
+  transition: transform 220ms cubic-bezier(.34,1.56,.64,1), opacity 200ms ease;
+}
+
+.group:hover .note-delete-icon,
+.group:focus-within .note-delete-icon {
+  opacity: 1;
+  transform: translateX(0);
+}

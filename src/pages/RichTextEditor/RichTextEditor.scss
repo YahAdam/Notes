@@ -150,6 +150,10 @@
   list-style-type: disc;
 }
 
+.tiptap .ProseMirror ol {
+  list-style-type: decimal;
+}
+
 .tiptap .ProseMirror ul li,
 .tiptap .ProseMirror ol li {
   color: var(--text);
