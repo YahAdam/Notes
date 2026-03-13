@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import "./App.scss";
 import { NotePad } from "./pages/RichTextEditor";
 import type { ThemeName } from "./types";
+import { THEMES } from "./constants";
 
 const THEME_STORAGE_KEY = "notes_theme";
 
 function loadTheme(): ThemeName {
-  const saved = localStorage.getItem(THEME_STORAGE_KEY);
-  if (saved === "light" || saved === "dark" || saved === "forest" || saved === "dark-forest") {
+  const saved = localStorage.getItem(THEME_STORAGE_KEY) as ThemeName;
+  if (THEMES.includes(saved)) {
     return saved;
   }
   return "light";

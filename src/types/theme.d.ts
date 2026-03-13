@@ -1,1 +1,3 @@
-export type ThemeName = "light" | "dark" | "forest" | "dark-forest" | "monokai";
+import { THEMES } from "../constants";
+
+export type ThemeName = (typeof THEMES)[number];

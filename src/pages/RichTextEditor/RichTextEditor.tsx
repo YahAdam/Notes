@@ -1,5 +1,5 @@
 import "./RichTextEditor.scss";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEditor, EditorContent } from "@tiptap/react";
 import Underline from "@tiptap/extension-underline";
@@ -8,10 +8,14 @@ import Color from "@tiptap/extension-color";
 import TextAlign from "@tiptap/extension-text-align";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import FileHandler from "@tiptap/extension-file-handler";
+import { Dropcursor } from "@tiptap/extensions";
 import type { ThemeName, Note } from "../../types";
 import { FONT_SIZES, STORAGE_KEY } from "../../constants";
 import { formatEpochDate } from "../../utilities/date";
+import { stripHtml } from "../../utilities/text";
 import { SidePanel } from "../../components/SidePanel";
+import { ResizableImage } from "../../components/ResizeableImage/ResizeableImage";
 
 type NotePadProps = {
   theme: ThemeName;
@@ -38,22 +42,14 @@ function saveNotes(notes: Note[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
 }
 
-function stripHtml(html: string): string {
-  if (!html) return "";
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<\/?[^>]+(>|$)/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 export function NotePad({ theme, setTheme }: NotePadProps) {
   const [notes, setNotes] = useState<Note[]>(() => loadNotes());
   const [selectedId, setSelectedId] = useState<string | null>(
     () => loadNotes()[0]?.id ?? null,
   );
   const [query, setQuery] = useState("");
+  const [isDragOverEditor, setIsDragOverEditor] = useState(false);
+  const dragDepthRef = useRef(0);
 
   const selectedNote = useMemo(
     () => notes.find((n) => n.id === selectedId) ?? null,
@@ -159,12 +155,112 @@ export function NotePad({ theme, setTheme }: NotePadProps) {
         TaskItem.configure({
           nested: true,
         }),
+        ResizableImage.configure({
+          allowBase64: true,
+          HTMLAttributes: {
+            class: "note-image",
+          },
+        }),
+        FileHandler.configure({
+          allowedMimeTypes: [
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "image/webp",
+          ],
+          onDrop: async (currentEditor, files, pos) => {
+            const file = files[0];
+            if (!file || !file.type.startsWith("image/")) return;
+
+            const src = await readFileAsDataUrl(file);
+
+            currentEditor
+              .chain()
+              .focus()
+              .insertContentAt(pos, {
+                type: "image",
+                attrs: {
+                  src,
+                  alt: file.name,
+                  title: file.name,
+                },
+              })
+              .run();
+          },
+          onPaste: async (currentEditor, files) => {
+            const file = files[0];
+            if (!file || !file.type.startsWith("image/")) return;
+
+            const src = await readFileAsDataUrl(file);
+
+            currentEditor
+              .chain()
+              .focus()
+              .setImage({
+                src,
+                alt: file.name,
+                title: file.name,
+              })
+              .run();
+          },
+        }),
+        Dropcursor.configure({
+          color: "var(--accent)",
+          width: 2,
+        }),
       ],
       content: selectedNote?.content ?? "<p></p>",
       editorProps: {
         attributes: {
           class:
             "note-editor-content min-h-0 flex-1 p-4 outline-none text-sm leading-6 text-left h-full cursor-text",
+        },
+        handleDOMEvents: {
+          dragenter: (_view, event) => {
+            const e = event as DragEvent;
+            const hasImage = Array.from(e.dataTransfer?.items ?? []).some(
+              (item) => item.kind === "file" && item.type.startsWith("image/"),
+            );
+            if (!hasImage) return false;
+            dragDepthRef.current += 1;
+            setIsDragOverEditor(true);
+            return false;
+          },
+          dragover: (_view, event) => {
+            const e = event as DragEvent;
+            const hasImage = Array.from(e.dataTransfer?.items ?? []).some(
+              (item) => item.kind === "file" && item.type.startsWith("image/"),
+            );
+            if (!hasImage) return false;
+            e.preventDefault();
+            if (e.dataTransfer) {
+              e.dataTransfer.dropEffect = "copy";
+            }
+            setIsDragOverEditor(true);
+            return false;
+          },
+          dragleave: (_view, event) => {
+            const e = event as DragEvent;
+            const hasImage = Array.from(e.dataTransfer?.items ?? []).some(
+              (item) => item.kind === "file" && item.type.startsWith("image/"),
+            );
+            if (!hasImage) return false;
+            dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+            if (dragDepthRef.current === 0) {
+              setIsDragOverEditor(false);
+            }
+            return false;
+          },
+          drop: (_view, event) => {
+            const e = event as DragEvent;
+            const hasImage = Array.from(e.dataTransfer?.items ?? []).some(
+              (item) => item.kind === "file" && item.type.startsWith("image/"),
+            );
+            if (!hasImage) return false;
+            dragDepthRef.current = 0;
+            setIsDragOverEditor(false);
+            return false;
+          },
         },
       },
       onUpdate: ({ editor }) => {
@@ -204,6 +300,47 @@ export function NotePad({ theme, setTheme }: NotePadProps) {
     editor.chain().focus().setColor(color).run();
   }
 
+  async function insertImage(file: File) {
+    await insertImageFile(file);
+  }
+
+  function readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Failed to read file as data URL."));
+        }
+      };
+
+      reader.onerror = () => {
+        reject(reader.error ?? new Error("Failed to read file."));
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function insertImageFile(file: File, editorInstance = editor) {
+    if (!editorInstance) return;
+    if (!file.type.startsWith("image/")) return;
+
+    const src = await readFileAsDataUrl(file);
+
+    editorInstance
+      .chain()
+      .focus()
+      .setImage({
+        src,
+        alt: file.name,
+        title: file.name,
+      })
+      .run();
+  }
+
   return (
     <div
       data-theme={theme}
@@ -223,24 +360,30 @@ export function NotePad({ theme, setTheme }: NotePadProps) {
           onExportJson={exportJson}
           onImportJson={importJson}
         />
-        <section className="notes-main flex h-full min-w-0 flex-col">
+        <section className="notes-main flex h-full min-w-0 min-h-0 flex-col">
           {!selectedNote ? (
             <div className="text-soft flex h-full flex-col items-center justify-center gap-3 p-6">
               <p className="m-0 text-base">No note selected.</p>
             </div>
           ) : (
             <>
-              <div className="notes-header border-b p-4">
-                <input
-                  className="input-base w-full rounded-xl px-3 py-2 text-lg font-extrabold focus:outline-none"
-                  placeholder="Title"
-                  value={selectedNote.title}
-                  onChange={(e) => updateSelected({ title: e.target.value })}
-                />
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-muted flex flex-col gap-1 text-xs sm:flex-row sm:gap-4">
-                    <div>Created: {formatEpochDate(selectedNote.createdAt)}</div>
-                    <div>Updated: {formatEpochDate(selectedNote.updatedAt)}</div>
+              <div className="notes-sticky-top sticky top-0 z-20">
+                <div className="notes-header border-b p-4">
+                  <input
+                    className="input-base w-full rounded-xl px-3 py-2 text-lg font-extrabold focus:outline-none"
+                    placeholder="Title"
+                    value={selectedNote.title}
+                    onChange={(e) => updateSelected({ title: e.target.value })}
+                  />
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-muted flex flex-col gap-1 text-xs sm:flex-row sm:gap-4">
+                      <div>
+                        Created: {formatEpochDate(selectedNote.createdAt)}
+                      </div>
+                      <div>
+                        Updated: {formatEpochDate(selectedNote.updatedAt)}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -363,11 +506,30 @@ export function NotePad({ theme, setTheme }: NotePadProps) {
                     >
                       1. List
                     </button>
+                    <label className="toolbar-btn rounded px-2 py-1 border cursor-pointer">
+                      Image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            insertImage(file);
+                          }
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
                   </div>
                 )}
               </div>
-              <div className="notes-editor-area min-h-0 flex-1 overflow-auto">
-                <div className="tiptap h-full">
+              <div
+                className={`notes-editor-area min-h-0 flex-1 overflow-auto ${isDragOverEditor ? "notes-editor-area-dragover" : ""}`}
+              >
+                <div
+                  className={`tiptap h-full ${isDragOverEditor ? "tiptap-dragover" : ""}`}
+                >
                   <EditorContent editor={editor} className="h-full" />
                 </div>
               </div>

@@ -186,3 +186,123 @@
 .tiptap .ProseMirror ul[data-type="taskList"] li > div {
   flex: 1;
 }
+
+.resizable-image-node {
+  display: inline-block;
+  max-width: 100%;
+  margin: 12px 0;
+}
+
+.resizable-image-wrap {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.note-image {
+  display: block;
+  max-width: 100%;
+  border-radius: 12px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.ProseMirror-selectednode .note-image {
+  outline: 2px solid var(--accent);
+}
+
+.ProseMirror-selectednode img {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.note-editor-content img,
+.note-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 12px 0;
+  border-radius: 12px;
+}
+
+[data-resize-handle] {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+.resizable-node-view {
+  position: relative;
+}
+
+.resizable-node-view.resizing img {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+.notes-main {
+  min-height: 0;
+}
+
+.notes-sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--panel);
+}
+
+.notes-editor-area {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+[data-resize-handle] {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: transparent;
+  border-radius: 0;
+  z-index: 10;
+}
+
+[data-resize-handle="bottom-right"] {
+  right: -6px;
+  bottom: -6px;
+  cursor: nwse-resize;
+}
+
+[data-resize-handle="bottom-left"] {
+  left: -6px;
+  bottom: -6px;
+  cursor: nesw-resize;
+}
+
+[data-resize-handle="top-right"] {
+  right: -6px;
+  top: -6px;
+  cursor: nesw-resize;
+}
+
+[data-resize-handle="top-left"] {
+  left: -6px;
+  top: -6px;
+  cursor: nwse-resize;
+}
+
+.notes-editor-area {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.notes-editor-area-dragover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.tiptap-dragover .ProseMirror {
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}

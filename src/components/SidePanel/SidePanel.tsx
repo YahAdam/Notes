@@ -3,6 +3,8 @@ import type { ThemeName } from "../../types";
 import type { Note } from "../../types";
 import { TrashIcon } from "../Icons";
 import { formatEpochDate } from '../../utilities/date';
+import { stripHtml } from '../../utilities/text';
+import { THEMES } from '../../constants';
 
 type SidePanelProps = {
   setTheme: (theme: ThemeName) => void;
@@ -17,16 +19,6 @@ type SidePanelProps = {
   onExportJson: () => void;
   onImportJson: (file: File) => Promise<void>;
 };
-
-function stripHtml(html: string): string {
-  if (!html) return "";
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<\/?[^>]+(>|$)/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 export function SidePanel({
   setTheme,
@@ -86,11 +78,11 @@ export function SidePanel({
             value={theme}
             onChange={(e) => setTheme(e.target.value as ThemeName)}
           >
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="forest">Forest</option>
-            <option value="dark-forest">Dark Forest</option>
-            <option value="monokai">Monokai</option>
+            {THEMES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
           </select>
         </div>
       </div>
