@@ -2,6 +2,8 @@ import Image from "@tiptap/extension-image";
 import { ResizableNodeView } from "@tiptap/core";
 
 export const ResizableImage = Image.extend({
+  draggable: true,
+
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -36,6 +38,11 @@ export const ResizableImage = Image.extend({
         img.setAttribute(key, String(value));
       });
 
+      img.draggable = false;
+      img.addEventListener("dragstart", event => {
+        event.preventDefault();
+      });
+
       if (typeof node.attrs.width === "number") {
         img.style.width = `${node.attrs.width}px`;
       } else {
@@ -57,9 +64,6 @@ export const ResizableImage = Image.extend({
           img.style.height = `${Math.round(height)}px`;
         },
         onCommit: (width, height) => {
-          const pos = getPos();
-          if (pos === undefined) return;
-
           editor.commands.updateAttributes("image", {
             width: Math.round(width),
             height: Math.round(height),

@@ -1,10 +1,10 @@
-import './SidePanel.scss';
+import "./SidePanel.scss";
 import type { ThemeName } from "../../types";
 import type { Note } from "../../types";
 import { TrashIcon } from "../Icons";
-import { formatEpochDate } from '../../utilities/date';
-import { stripHtml } from '../../utilities/text';
-import { THEMES } from '../../constants';
+import { formatEpochDate } from "../../utilities/date";
+import { kebabToTitleCase, stripHtml } from "../../utilities/text";
+import { THEMES } from "../../constants";
 
 type SidePanelProps = {
   setTheme: (theme: ThemeName) => void;
@@ -16,8 +16,6 @@ type SidePanelProps = {
   onSelectNote: (id: string) => void;
   onCreateNote: () => void;
   onDeleteNote: (id: string) => void;
-  onExportJson: () => void;
-  onImportJson: (file: File) => Promise<void>;
 };
 
 export function SidePanel({
@@ -30,8 +28,6 @@ export function SidePanel({
   onSelectNote,
   onCreateNote,
   onDeleteNote,
-  onExportJson,
-  onImportJson,
 }: SidePanelProps) {
   return (
     <aside className="notes-sidebar flex h-full flex-col border-b md:border-b-0 md:border-r">
@@ -53,26 +49,6 @@ export function SidePanel({
           onChange={(e) => setQuery(e.target.value)}
         />
         <div className="mt-3 flex gap-2">
-          <button
-            className="btn-secondary inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold"
-            type="button"
-            onClick={onExportJson}
-          >
-            Export
-          </button>
-          <label className="btn-secondary inline-flex cursor-pointer items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold">
-            Import
-            <input
-              className="hidden"
-              type="file"
-              accept="application/json"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void onImportJson(f);
-                e.currentTarget.value = "";
-              }}
-            />
-          </label>
           <select
             className="input-base rounded-xl px-3 py-2 text-sm focus:outline-none"
             value={theme}
@@ -80,7 +56,7 @@ export function SidePanel({
           >
             {THEMES.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {kebabToTitleCase(t)}
               </option>
             ))}
           </select>
@@ -123,7 +99,7 @@ export function SidePanel({
                         {preview}
                       </div>
                     </button>
-                   <div className="note-delete-icon">
+                    <div className="note-delete-icon">
                       <button
                         className="flex h-8 w-8 items-center justify-center rounded-lg cursor-pointer"
                         type="button"

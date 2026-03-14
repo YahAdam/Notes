@@ -11,45 +11,47 @@ import TaskItem from "@tiptap/extension-task-item";
 import FileHandler from "@tiptap/extension-file-handler";
 import { Dropcursor } from "@tiptap/extensions";
 import type { ThemeName, Note } from "../../types";
-import { FONT_SIZES, STORAGE_KEY } from "../../constants";
+import { FONT_SIZES } from "../../constants";
 import { formatEpochDate } from "../../utilities/date";
 import { stripHtml } from "../../utilities/text";
 import { SidePanel } from "../../components/SidePanel";
 import { ResizableImage } from "../../components/ResizeableImage/ResizeableImage";
+import { getNotes, saveNote, deleteNoteFromIdb } from "../../idb/notes";
+import { uid } from "../../utilities/uid";
 
 type NotePadProps = {
   theme: ThemeName;
   setTheme: React.Dispatch<React.SetStateAction<ThemeName>>;
 };
 
-function uid(): string {
-  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function loadNotes(): Note[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as Note[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-}
-
-function saveNotes(notes: Note[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-}
-
 export function NotePad({ theme, setTheme }: NotePadProps) {
-  const [notes, setNotes] = useState<Note[]>(() => loadNotes());
-  const [selectedId, setSelectedId] = useState<string | null>(
-    () => loadNotes()[0]?.id ?? null,
-  );
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [isDragOverEditor, setIsDragOverEditor] = useState(false);
   const dragDepthRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const storedNotes = await getNotes();
+
+      if (cancelled) return;
+
+      const sorted = storedNotes
+        .slice()
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+      setNotes(sorted);
+      setSelectedId(sorted[0]?.id ?? null);
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectedNote = useMemo(
     () => notes.find((n) => n.id === selectedId) ?? null,
@@ -69,10 +71,6 @@ export function NotePad({ theme, setTheme }: NotePadProps) {
   }, [notes, query]);
 
   useEffect(() => {
-    saveNotes(notes);
-  }, [notes]);
-
-  useEffect(() => {
     if (selectedId && !notes.some((n) => n.id === selectedId)) {
       setSelectedId(notes[0]?.id ?? null);
     }
@@ -89,6 +87,7 @@ export function NotePad({ theme, setTheme }: NotePadProps) {
     };
     setNotes((prev) => [newNote, ...prev]);
     setSelectedId(newNote.id);
+    saveNote(newNote);
   }
 
   function deleteNote(id: string) {
@@ -96,48 +95,22 @@ export function NotePad({ theme, setTheme }: NotePadProps) {
     if (selectedId === id) {
       setSelectedId(null);
     }
+    deleteNoteFromIdb(id);
   }
 
   function updateSelected(patch: Partial<Pick<Note, "title" | "content">>) {
     if (!selectedId) return;
     const now = Date.now();
+
     setNotes((prev) =>
-      prev.map((n) =>
-        n.id === selectedId ? { ...n, ...patch, updatedAt: now } : n,
-      ),
+      prev.map((n) => {
+        if (n.id !== selectedId) return n;
+
+        const updated = { ...n, ...patch, updatedAt: now };
+        saveNote(updated);
+        return updated;
+      }),
     );
-  }
-
-  function exportJson() {
-    const blob = new Blob([JSON.stringify(notes, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "notes.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function importJson(file: File) {
-    const text = await file.text();
-    const parsed = JSON.parse(text) as Note[];
-    if (!Array.isArray(parsed)) return;
-
-    const normalized: Note[] = parsed
-      .filter((x) => x && typeof x === "object")
-      .map((x: any) => ({
-        id: typeof x.id === "string" ? x.id : uid(),
-        title: typeof x.title === "string" ? x.title : "Untitled",
-        content: typeof x.content === "string" ? x.content : "<p></p>",
-        createdAt: typeof x.createdAt === "number" ? x.createdAt : Date.now(),
-        updatedAt: typeof x.updatedAt === "number" ? x.updatedAt : Date.now(),
-      }));
-
-    const sorted = normalized.sort((a, b) => b.updatedAt - a.updatedAt);
-    setNotes(sorted);
-    setSelectedId(sorted[0]?.id ?? null);
   }
 
   const editor = useEditor(
@@ -357,8 +330,6 @@ export function NotePad({ theme, setTheme }: NotePadProps) {
           onSelectNote={setSelectedId}
           onCreateNote={createNote}
           onDeleteNote={deleteNote}
-          onExportJson={exportJson}
-          onImportJson={importJson}
         />
         <section className="notes-main flex h-full min-w-0 min-h-0 flex-col">
           {!selectedNote ? (
